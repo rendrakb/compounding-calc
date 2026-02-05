@@ -65,7 +65,7 @@ def get_user_input():
 
     while True:
         try:
-            rate = float(input("Annual interest rate (%, e.g., 5 for 5%): ")) / 100
+            rate = float(input("Interest rate (%, e.g., 5 for 5%): ")) / 100
             if rate < 0:
                 print("Interest rate cannot be negative. Try again.")
                 continue
@@ -130,7 +130,7 @@ def display_results(principal, rate, compounds_per_year, years, contributions=0,
         ["Principal", f"€{principal:,.2f}"],
         ["Annual Contributions", f"€{contributions:,.2f}" if contributions > 0 else "None"],
         ["Total Contributed", f"€{total_contributed:,.2f}"],
-        ["Annual Rate", f"{rate * 100:.2f}%"],
+        ["Interest Rate", f"{rate * 100:.2f}%"],
         ["Compounds", f"{compounds_per_year}x per year"],
         ["Time Period", f"{years} years"],
     ]
@@ -161,7 +161,7 @@ def main():
         description="Calculate compound interest growth with contributions and inflation"
     )
     parser.add_argument("-p", "--principal", type=float, help="Principal amount (€)")
-    parser.add_argument("-r", "--rate", type=float, help="Annual interest rate (%)")
+    parser.add_argument("-r", "--rate", type=float, help="Interest rate (%)")
     parser.add_argument("-n", "--compounds", type=int, help="Compounds per year")
     parser.add_argument("-t", "--years", type=int, help="Number of years")
     parser.add_argument("-c", "--contributions", type=float, default=0, help="Annual contributions (€) [default: 0]")
