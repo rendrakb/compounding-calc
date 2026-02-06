@@ -28,35 +28,39 @@ def validate_input(principal, rate, compounds_per_year, years, contributions=0, 
     return True
 
 
-def calculate_compound_growth(P, r, n, t, pmt=0, inflation=0, contribution_timing='end'):
+def calculate_compound_growth(P, r, n, t, pmt=0, inflation=0, contribution_timing='end', rate_is_periodic=False):
     """
     Calculate compound growth with contributions.
     
     Parameters:
     - P: principal
-    - r: annual interest rate (as decimal, e.g., 0.05 for 5%)
+    - r: interest rate (as decimal, e.g., 0.05 for 5%)
     - n: compounds per year
     - t: number of years
     - pmt: annual contribution amount
     - inflation: annual inflation rate (as decimal)
     - contribution_timing: 'start' or 'end' of year (default: 'end')
+    - rate_is_periodic: if True, r is the per-period rate; if False, r is annual rate (default: False)
     
     Returns tuple: (nominal_balance, inflation_adjusted_balance)
     """
     
-    periodic_rate = r / n
+    if rate_is_periodic:
+        periodic_rate = r
+        annual_rate = (1 + periodic_rate) ** n - 1
+    else:
+        periodic_rate = r / n
+        annual_rate = r
     total_periods = n * t
     
     principal_future_value = P * (1 + periodic_rate) ** total_periods
     
     contribution_future_value = 0
     if pmt > 0 and t > 0:
-        effective_annual_rate = (1 + periodic_rate) ** n - 1
-        
         if contribution_timing == 'start':
-            contribution_future_value = pmt * (((1 + effective_annual_rate) ** t - 1) / effective_annual_rate) * (1 + effective_annual_rate)
+            contribution_future_value = pmt * (((1 + annual_rate) ** t - 1) / annual_rate) * (1 + annual_rate)
         else:
-            contribution_future_value = pmt * (((1 + effective_annual_rate) ** t - 1) / effective_annual_rate)
+            contribution_future_value = pmt * (((1 + annual_rate) ** t - 1) / annual_rate)
     
     nominal_balance = principal_future_value + contribution_future_value
     
@@ -82,8 +86,21 @@ def get_user_input():
             print("Please enter a valid number.")
 
     while True:
+        rate_type = input("Rate type (annual/periodic) [annual]: ").strip().lower()
+        if rate_type == "":
+            rate_type = "annual"
+        if rate_type in ["annual", "periodic"]:
+            break
+        print("Please enter 'annual' or 'periodic'.")
+    
+    rate_is_periodic = (rate_type == "periodic")
+
+    while True:
         try:
-            rate = float(input("Interest rate (%, e.g., 5 for 5%): ")) / 100
+            if rate_is_periodic:
+                rate = float(input("Interest rate per period (%, e.g., 1.25 for 1.25% per period): ")) / 100
+            else:
+                rate = float(input("Annual interest rate (%, e.g., 5 for 5% per year): ")) / 100
             if rate < 0:
                 print("Interest rate cannot be negative. Try again.")
                 continue
@@ -144,14 +161,21 @@ def get_user_input():
             break
         print("Please enter 'start' or 'end'.")
 
-    return principal, rate, compounds_per_year, years, contributions, inflation, timing
+    return principal, rate, compounds_per_year, years, contributions, inflation, timing, rate_is_periodic
 
 
-def display_results(principal, rate, compounds_per_year, years, contributions=0, inflation=0, contribution_timing='end'):
+def display_results(principal, rate, compounds_per_year, years, contributions=0, inflation=0, contribution_timing='end', rate_is_periodic=False):
     """Display results in a formatted table"""
     final_nominal, final_real = calculate_compound_growth(
-        principal, rate, compounds_per_year, years, contributions, inflation, contribution_timing
+        principal, rate, compounds_per_year, years, contributions, inflation, contribution_timing, rate_is_periodic
     )
+    
+    if rate_is_periodic:
+        effective_annual_rate = (1 + rate) ** compounds_per_year - 1
+        rate_label = f"{rate * 100:.2f}% per period ({effective_annual_rate * 100:.2f}% effective annual)"
+    else:
+        effective_annual_rate = rate
+        rate_label = f"{rate * 100:.2f}%"
     
     total_contributed = principal + (contributions * years)
     
@@ -178,7 +202,7 @@ def display_results(principal, rate, compounds_per_year, years, contributions=0,
         ["Annual Contributions", f"IDR {contributions:,.2f}" if contributions > 0 else "None"],
         ["Contribution Timing", contribution_timing.capitalize() + " of year"],
         ["Total Contributed (nominal)", f"IDR {total_contributed:,.2f}"],
-        ["Annual Rate", f"{rate * 100:.2f}%"],
+        ["Interest Rate", rate_label],
         ["Compounds", f"{compounds_per_year}x per year"],
         ["Time Period", f"{years} years"],
     ]
@@ -206,12 +230,14 @@ def display_results(principal, rate, compounds_per_year, years, contributions=0,
     
     for year in range(0, years + 1):
         nominal, real = calculate_compound_growth(
-            principal, rate, compounds_per_year, year, contributions, inflation, contribution_timing
+            principal, rate, compounds_per_year, year, contributions, inflation, contribution_timing, rate_is_periodic
         )
         
+        # Total contributed up to this year (nominal)
         total_nominal_contrib = principal + (contributions * year)
         nominal_interest = nominal - total_nominal_contrib
         
+        # Total real contributions up to this year
         total_real_contrib = principal
         if contributions > 0 and year > 0:
             for y in range(1, year + 1):
@@ -258,6 +284,8 @@ def main():
     parser.add_argument("-i", "--inflation", type=float, default=0, help="Annual inflation rate (%) [default: 0]")
     parser.add_argument("--timing", type=str, default="end", choices=["start", "end"], 
                         help="Contribution timing: 'start' or 'end' of year [default: end]")
+    parser.add_argument("--periodic", action="store_true", 
+                        help="Treat rate as per-period rate instead of annual rate")
 
     args = parser.parse_args()
 
@@ -269,13 +297,14 @@ def main():
         contributions = args.contributions
         inflation = args.inflation / 100
         contribution_timing = args.timing
+        rate_is_periodic = args.periodic
     else:
-        principal, rate, compounds_per_year, years, contributions, inflation, contribution_timing = get_user_input()
+        principal, rate, compounds_per_year, years, contributions, inflation, contribution_timing, rate_is_periodic = get_user_input()
 
     if not validate_input(principal, rate, compounds_per_year, years, contributions, inflation):
         sys.exit(1)
 
-    display_results(principal, rate, compounds_per_year, years, contributions, inflation, contribution_timing)
+    display_results(principal, rate, compounds_per_year, years, contributions, inflation, contribution_timing, rate_is_periodic)
 
 
 if __name__ == "__main__":
