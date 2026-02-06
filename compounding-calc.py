@@ -233,11 +233,9 @@ def display_results(principal, rate, compounds_per_year, years, contributions=0,
             principal, rate, compounds_per_year, year, contributions, inflation, contribution_timing, rate_is_periodic
         )
         
-        # Total contributed up to this year (nominal)
         total_nominal_contrib = principal + (contributions * year)
         nominal_interest = nominal - total_nominal_contrib
         
-        # Total real contributions up to this year
         total_real_contrib = principal
         if contributions > 0 and year > 0:
             for y in range(1, year + 1):
